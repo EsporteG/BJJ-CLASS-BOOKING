@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastro de Treino</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4ff;min-height:100vh;padding:24px 16px}
+.container{max-width:520px;margin:0 auto}
+.header{text-align:center;margin-bottom:28px}
+.header h1{font-size:24px;font-weight:600;color:#26215C;margin-bottom:6px}
+.header p{font-size:14px;color:#888}
+.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;border:1px solid #eee;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.card-title{font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:#555;margin-bottom:5px;font-weight:500}
+.field input{width:100%;padding:10px 14px;border:1.5px solid #e5e5e5;border-radius:10px;font-size:15px;outline:none;transition:border .15s;background:#fafafa}
+.field input:focus{border-color:#534AB7;background:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.days-filter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.day-btn{padding:6px 14px;border:1.5px solid #e5e5e5;border-radius:100px;font-size:13px;cursor:pointer;background:#fafafa;color:#555;font-weight:500}
+.day-btn.active{background:#534AB7;border-color:#534AB7;color:#fff}
+.schedule-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.slot{border:1.5px solid #e5e5e5;border-radius:12px;padding:10px;cursor:pointer;text-align:center;background:#fafafa;transition:all .15s}
+.slot:hover{border-color:#534AB7;background:#EEEDFE}
+.slot.selected{border-color:#534AB7;background:#EEEDFE}
+.slot-day{font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em}
+.slot-time{font-size:16px;font-weight:600;color:#26215C;margin-top:2px}
+.slot.selected .slot-day{color:#534AB7}
+.slot.selected .slot-time{color:#3C3489}
+.notify-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.notify-row:last-child{border-bottom:none}
+.notify-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.notify-title{font-size:14px;font-weight:600;color:#222;margin-bottom:1px}
+.notify-sub{font-size:12px;color:#888}
+.toggle{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;background:#ddd;border-radius:24px;cursor:pointer;transition:.2s}
+.tslider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+input:checked+.tslider{background:#534AB7}
+input:checked+.tslider:before{transform:translateX(18px)}
+.btn{width:100%;padding:14px;background:#534AB7;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover:not(:disabled){background:#3C3489}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.success{display:none;text-align:center;padding:40px 20px}
+.success-icon{width:72px;height:72px;background:#E1F5EE;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px}
+.success h2{font-size:22px;font-weight:700;color:#222;margin-bottom:8px}
+.success p{font-size:14px;color:#666;margin-bottom:24px;line-height:1.6}
+.btn-outline{padding:11px 24px;background:#fff;border:2px solid #534AB7;border-radius:12px;font-size:14px;font-weight:600;color:#534AB7;cursor:pointer}
+.spinner{width:20px;height:20px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.alert{padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;display:none;font-weight:500}
+.alert-err{background:#fff0f0;color:#c0392b;border:1px solid #f5c6c6}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🏋️ Cadastro de Treino</h1>
+    <p>Preencha seus dados e receba lembretes 1h antes</p>
+  </div>
+
+  <div id="main-form">
+    <div class="alert alert-err" id="alert-err"></div>
+
+    <div class="card">
+      <div class="card-title">👤 Dados pessoais</div>
+      <div class="field">
+        <label>Nome completo</label>
+        <input type="text" id="nome" placeholder="Seu nome" oninput="validate()">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" id="email" placeholder="email@exemplo.com" oninput="validate()">
+        </div>
+        <div class="field">
+          <label>Celular (WhatsApp)</label>
+          <input type="tel" id="celular" placeholder="(11) 99999-9999" oninput="maskPhone(this);validate()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📅 Horário de treino</div>
+      <div class="days-filter" id="days-filter"></div>
+      <div class="schedule-grid" id="schedule-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔔 Lembretes automáticos (1h antes)</div>
+      <div class="notify-row">
+        <div class="notify-icon" style="background:#E1F5EE">💬</div>
+        <div style="flex:1">
+          <div class="notify-title">WhatsApp</div>
+          <div class="notify-sub">Mensagem automática via Twilio</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="toggle-wa" checked><span class="tslider"></span></label>
+      </div>
+      <div class="notify-row">
+        <div class="notify-icon" style="background:#E6F1FB">📧</div>
+        <div style="flex:1">
+          <div class="notify-title">E-mail</div>
+          <div class="notify-sub">Enviado automaticamente via Gmail</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="toggle-email" checked><span class="tslider"></span></label>
+      </div>
+    </div>
+
+    <button class="btn" id="btn-cadastrar" onclick="cadastrar()" disabled>
+      ✅ Confirmar cadastro
+    </button>
+  </div>
+
+  <div class="success" id="success-panel">
+    <div class="success-icon">✅</div>
+    <h2>Cadastro realizado!</h2>
+    <p id="success-msg"></p>
+    <button class="btn-outline" onclick="novoC()">+ Cadastrar outro aluno</button>
+  </div>
+</div>
+
+<script>
+const SLOTS=[
+  {day:'Segunda',short:'Seg',time:'06:00'},{day:'Segunda',short:'Seg',time:'07:00'},
+  {day:'Segunda',short:'Seg',time:'08:00'},{day:'Segunda',short:'Seg',time:'12:00'},
+  {day:'Segunda',short:'Seg',time:'18:00'},{day:'Segunda',short:'Seg',time:'19:00'},{day:'Segunda',short:'Seg',time:'20:00'},
+  {day:'Terça',short:'Ter',time:'06:00'},{day:'Terça',short:'Ter',time:'07:00'},
+  {day:'Terça',short:'Ter',time:'08:00'},{day:'Terça',short:'Ter',time:'12:00'},
+  {day:'Terça',short:'Ter',time:'18:00'},{day:'Terça',short:'Ter',time:'19:00'},{day:'Terça',short:'Ter',time:'20:00'},
+  {day:'Quarta',short:'Qua',time:'06:00'},{day:'Quarta',short:'Qua',time:'07:00'},
+  {day:'Quarta',short:'Qua',time:'08:00'},{day:'Quarta',short:'Qua',time:'12:00'},
+  {day:'Quarta',short:'Qua',time:'18:00'},{day:'Quarta',short:'Qua',time:'19:00'},
+  {day:'Quinta',short:'Qui',time:'06:00'},{day:'Quinta',short:'Qui',time:'07:00'},
+  {day:'Quinta',short:'Qui',time:'08:00'},{day:'Quinta',short:'Qui',time:'12:00'},
+  {day:'Quinta',short:'Qui',time:'18:00'},{day:'Quinta',short:'Qui',time:'19:00'},
+  {day:'Sexta',short:'Sex',time:'06:00'},{day:'Sexta',short:'Sex',time:'07:00'},
+  {day:'Sexta',short:'Sex',time:'08:00'},{day:'Sexta',short:'Sex',time:'12:00'},
+  {day:'Sexta',short:'Sex',time:'18:00'},{day:'Sexta',short:'Sex',time:'19:00'},
+  {day:'Sábado',short:'Sáb',time:'08:00'},{day:'Sábado',short:'Sáb',time:'09:00'},{day:'Sábado',short:'Sáb',time:'10:00'}
+];
+const DAYS=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+let activeDay='Segunda',selectedSlot=null;
+
+function renderDays(){
+  document.getElementById('days-filter').innerHTML=DAYS.map(d=>
+    `<button class="day-btn${d===activeDay?' active':''}" onclick="filterDay('${d}')">${d}</button>`
+  ).join('');
+}
+function filterDay(d){activeDay=d;renderDays();renderSlots();}
+function renderSlots(){
+  document.getElementById('schedule-grid').innerHTML=
+    SLOTS.filter(s=>s.day===activeDay).map(s=>{
+      const key=s.day+'|'+s.time;
+      return `<div class="slot${selectedSlot===key?' selected':''}" onclick="selectSlot('${key}')">
+        <div class="slot-day">${s.short}</div>
+        <div class="slot-time">${s.time}</div>
+      </div>`;
+    }).join('');
+}
+function selectSlot(key){selectedSlot=key;renderSlots();validate();}
+function maskPhone(el){
+  let v=el.value.replace(/\D/g,'').substring(0,11);
+  if(v.length>10) v=v.replace(/^(\d{2})(\d{5})(\d{4}).*/,'($1) $2-$3');
+  else if(v.length>6) v=v.replace(/^(\d{2})(\d{4})(\d*)/,'($1) $2-$3');
+  else if(v.length>2) v=v.replace(/^(\d{2})(\d*)/,'($1) $2');
+  el.value=v;
+}
+function validate(){
+  const nome=document.getElementById('nome').value.trim();
+  const email=document.getElementById('email').value.trim();
+  const cel=document.getElementById('celular').value.replace(/\D/g,'');
+  const emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  document.getElementById('btn-cadastrar').disabled=!(nome&&emailOk&&cel.length>=10&&selectedSlot);
+}
+async function cadastrar(){
+  const btn=document.getElementById('btn-cadastrar');
+  const [day,time]=selectedSlot.split('|');
+  const payload={
+    nome:document.getElementById('nome').value.trim(),
+    email:document.getElementById('email').value.trim(),
+    cel:document.getElementById('celular').value,
+    day,time,
+    wa:document.getElementById('toggle-wa').checked,
+    email_notify:document.getElementById('toggle-email').checked
+  };
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div> Cadastrando...';
+  try{
+    const r=await fetch('/api/cadastrar',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Erro no servidor');
+    const channels=[];
+    if(payload.wa) channels.push('WhatsApp');
+    if(payload.email_notify) channels.push('e-mail');
+    document.getElementById('main-form').style.display='none';
+    document.getElementById('success-panel').style.display='block';
+    document.getElementById('success-msg').textContent=
+      `${payload.nome}, treino de ${day} às ${time}h registrado! `+
+      (channels.length?`Você receberá lembretes via ${channels.join(' e ')} 1h antes. 💪`:'');
+  }catch(e){
+    const ae=document.getElementById('alert-err');
+    ae.textContent='Erro: '+e.message;
+    ae.style.display='block';
+    btn.innerHTML='✅ Confirmar cadastro';
+    validate();
+  }
+}
+function novoC(){
+  document.getElementById('nome').value='';
+  document.getElementById('email').value='';
+  document.getElementById('celular').value='';
+  selectedSlot=null;
+  renderSlots();
+  document.getElementById('success-panel').style.display='none';
+  document.getElementById('main-form').style.display='block';
+  document.getElementById('btn-cadastrar').disabled=true;
+  document.getElementById('alert-err').style.display='none';
+}
+renderDays();renderSlots();
+</script>
+</body>
+</html>
