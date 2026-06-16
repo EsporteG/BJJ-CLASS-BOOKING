@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha Jiu-Jitsu — Painel</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;min-height:100vh}
+.topbar{background:#000;padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:54px;border-bottom:1px solid #1a1a1a;position:sticky;top:0;z-index:10}
+.topbar-brand{font-size:18px;font-weight:900;color:#fff;letter-spacing:2px}
+.topbar-sub{font-size:10px;color:#666;letter-spacing:3px;text-transform:uppercase}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-name{font-size:13px;color:#777}
+.btn-logout{background:none;border:1px solid #333;border-radius:6px;padding:5px 12px;font-size:12px;color:#777;cursor:pointer;transition:all .15s}
+.btn-logout:hover{border-color:#fff;color:#fff}
+.content{max-width:960px;margin:0 auto;padding:24px 16px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:#111;border:1px solid #1a1a1a;border-radius:10px;padding:4px;margin-bottom:20px}
+.tab{flex:1;padding:9px;border:none;background:none;color:#666;font-size:13px;font-weight:600;cursor:pointer;border-radius:7px;transition:all .15s;text-align:center;display:flex;align-items:center;justify-content:center;gap:7px}
+.tab.active{background:#1a1a1a;color:#fff}
+.tab svg{opacity:.6}
+.tab.active svg{opacity:1}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Loading */
+.loading{text-align:center;padding:60px;color:#555}
+.spinner-lg{display:inline-block;width:28px;height:28px;border:3px solid #222;border-top-color:#C0392B;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Hero aluno */
+.hero-card{background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hero-left{display:flex;align-items:center;gap:14px}
+.hero-avatar{width:46px;height:46px;background:#1a1a1a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hero-nome{font-size:18px;font-weight:900;color:#fff}
+.hero-sub{font-size:12px;color:#777;margin-top:2px}
+.btn-agendar-link{padding:9px 18px;background:#C0392B;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;text-transform:uppercase;letter-spacing:.06em;transition:background .15s;white-space:nowrap}
+.btn-agendar-link:hover{background:#a93226}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700}
+.badge-agendado{background:#1a1a00;color:#ccaa00}
+.badge-presente{background:#0d2e1a;color:#4caf7d}
+.badge-faltou{background:#2a0000;color:#e06060}
+
+/* Tipo pills */
+.tipo-pill{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase}
+.tipo-adulto{background:#3a3a3a;color:#ccc}
+.tipo-kids1{background:#E91E8C;color:#fff}
+.tipo-kids2{background:#8B2FC9;color:#fff}
+
+/* Cards agendamento */
+.ag-card{background:#111;border:1px solid #1a1a1a;border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ag-card-date{min-width:52px;text-align:center;flex-shrink:0;border-right:1px solid #1a1a1a;padding-right:12px;margin-right:4px}
+.ag-card-day{font-size:10px;font-weight:700;color:#777;text-transform:uppercase}
+.ag-card-num{font-size:24px;font-weight:900;color:#fff;line-height:1}
+.ag-card-month{font-size:10px;color:#666}
+.ag-card-info{flex:1;min-width:0}
+.ag-card-nome{font-size:14px;font-weight:700;color:#fff}
+.ag-card-detail{font-size:12px;color:#777;margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ag-card-actions{display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap}
+.btn-presente{padding:6px 12px;background:#0d2e1a;border:1px solid #1a5c34;color:#4caf7d;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.btn-presente:hover,.btn-presente.active{background:#1a5c34;border-color:#4caf7d}
+.btn-faltou{padding:6px 12px;background:#1e0808;border:1px solid #4a1515;color:#e06060;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.btn-faltou:hover,.btn-faltou.active{background:#4a1515;border-color:#e06060}
+.btn-del-x{padding:4px 8px;background:none;border:none;color:#C0392B;font-size:18px;font-weight:700;cursor:pointer;line-height:1;opacity:.7;transition:opacity .15s}
+.btn-del-x:hover{opacity:1}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:20px}
+.stat{background:#111;border:1px solid #1a1a1a;border-radius:10px;padding:14px;text-align:center}
+.stat-num{font-size:28px;font-weight:900;color:#fff}
+.stat-num.red{color:#C0392B}
+.stat-num.green{color:#4caf7d}
+.stat-label{font-size:11px;color:#666;margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+
+/* Seção */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.08em}
+.section-count{font-size:12px;color:#555}
+
+/* Filtros */
+.filter-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.filter-btn{padding:5px 14px;border:1px solid #222;border-radius:100px;font-size:12px;font-weight:600;color:#666;cursor:pointer;background:none;transition:all .15s}
+.filter-btn:hover{border-color:#666;color:#aaa}
+.filter-btn.active{border-color:#C0392B;color:#C0392B;background:#1a0808}
+
+/* Busca */
+.search-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.search-input{flex:1;min-width:160px;padding:9px 13px;border:1px solid #222;border-radius:8px;font-size:13px;outline:none;background:#111;color:#fff}
+.search-input:focus{border-color:#444}
+.search-input::placeholder{color:#555}
+.btn-sm{padding:9px 13px;background:#111;border:1px solid #222;border-radius:8px;font-size:11px;font-weight:700;color:#666;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s;white-space:nowrap}
+.btn-sm:hover{border-color:#fff;color:#fff}
+
+/* Cards de alunos */
+.aluno-card{background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:16px;margin-bottom:10px}
+.aluno-card-top{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.aluno-info{flex:1;min-width:0}
+.aluno-nome{font-size:15px;font-weight:700;color:#fff}
+.aluno-email{font-size:11px;color:#555;margin-top:2px}
+.aluno-cel{font-size:11px;color:#555}
+.aluno-meta{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* Faixa badge */
+.faixa-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;border:1px solid transparent}
+.grau-dots{display:flex;gap:3px;margin-left:2px}
+.grau-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.3)}
+.grau-dot.filled{background:#FFD700}
+
+/* Progress bar */
+.progress-wrap{margin-top:10px}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:4px}
+.progress-label.apto{color:#4caf7d;font-weight:700}
+.progress-bar{height:5px;background:#1a1a1a;border-radius:10px;overflow:hidden}
+.progress-fill{height:100%;border-radius:10px;background:#C0392B;transition:width .3s}
+.progress-fill.apto{background:#4caf7d}
+
+/* Ações aluno */
+.aluno-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.btn-editar{padding:5px 10px;background:#1a1a1a;border:1px solid #2a2a2a;color:#888;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-editar:hover{border-color:#666;color:#fff}
+.btn-hist{padding:5px 10px;background:#1a1a1a;border:1px solid #2a2a2a;color:#888;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-hist:hover{border-color:#666;color:#fff}
+
+/* Form edição inline */
+.edit-form{margin-top:14px;padding-top:14px;border-top:1px solid #1a1a1a;display:none}
+.edit-form.open{display:block}
+.edit-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.edit-select{padding:7px 10px;background:#0d0d0d;border:1px solid #2a2a2a;color:#fff;border-radius:7px;font-size:13px;outline:none;cursor:pointer}
+.btn-save{padding:7px 14px;background:#C0392B;border:none;color:#fff;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s}
+.btn-save:hover{background:#a93226}
+.btn-cancel-edit{padding:7px 10px;background:none;border:1px solid #222;color:#666;border-radius:7px;font-size:12px;cursor:pointer}
+
+/* Modal histórico */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-backdrop.open{display:flex}
+.modal{background:#111;border:1px solid #222;border-radius:14px;padding:24px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;color:#fff;margin-bottom:16px}
+.hist-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1a1a1a}
+.hist-item:last-child{border-bottom:none}
+.hist-date{font-size:12px;color:#666;min-width:60px}
+.hist-info{flex:1}
+.btn-close-modal{width:100%;padding:10px;background:#1a1a1a;border:1px solid #222;color:#888;border-radius:8px;font-size:13px;cursor:pointer;margin-top:16px}
+
+.empty{text-align:center;padding:40px;color:#444;font-size:13px}
+.empty a{color:#C0392B}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <div class="topbar-brand">ALPHA</div>
+    <div class="topbar-sub">Escola de Jiu-Jitsu</div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-name" id="topbar-name"></span>
+    <button class="btn-logout" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="loading" id="loading"><div class="spinner-lg"></div></div>
+
+  <!-- ── ALUNO ── -->
+  <div id="view-aluno" style="display:none">
+    <div class="hero-card">
+      <div class="hero-left">
+        <div class="hero-avatar">🥋</div>
+        <div>
+          <div class="hero-nome" id="aluno-nome"></div>
+          <div class="hero-sub" id="aluno-email-txt"></div>
+        </div>
+      </div>
+      <a class="btn-agendar-link" href="/agendar.html">+ Agendar Aula</a>
+    </div>
+    <div class="section-head"><div class="section-title">Próximas aulas</div></div>
+    <div id="aluno-proximas"></div>
+    <div class="section-head" style="margin-top:24px"><div class="section-title">Histórico</div></div>
+    <div id="aluno-historico"></div>
+  </div>
+
+  <!-- ── ADMIN ── -->
+  <div id="view-admin" style="display:none">
+    <div class="tabs">
+      <!-- Ícone calendário clean -->
+      <button class="tab active" onclick="switchTab('aulas',this)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="7"/><line x1="16" y1="2" x2="16" y2="7"/>
+        </svg>
+        Aulas
+      </button>
+      <!-- Ícone faixa branca -->
+      <button class="tab" onclick="switchTab('alunos',this)">
+        <svg width="18" height="10" viewBox="0 0 28 10">
+          <rect x="0" y="0" width="28" height="10" rx="2" fill="currentColor" opacity=".8"/>
+          <rect x="11" y="-1" width="6" height="12" rx="1" fill="#0a0a0a"/>
+        </svg>
+        Alunos
+      </button>
+    </div>
+
+    <div class="tab-panel active" id="tab-aulas">
+      <div class="stats-row" id="stats-aulas"></div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+        <button class="filter-btn" onclick="setFilter('agendado',this)">Agendados</button>
+        <button class="filter-btn" onclick="setFilter('presente',this)">Presentes</button>
+        <button class="filter-btn" onclick="setFilter('faltou',this)">Faltou</button>
+      </div>
+      <div class="section-head">
+        <div class="section-title" id="aulas-title">Todos os agendamentos</div>
+        <div class="section-count" id="aulas-count"></div>
+      </div>
+      <div id="lista-aulas"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-alunos">
+      <div class="search-row">
+        <input class="search-input" type="text" id="busca-aluno" placeholder="Buscar por nome ou e-mail..." oninput="filtrarAlunos()">
+        <button class="btn-sm" onclick="recarregarAlunos()">↺ Atualizar</button>
+        <button class="btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+      <div class="section-title" id="alunos-title" style="margin-bottom:12px"></div>
+      <div id="lista-alunos"></div>
+    </div>
+
+    <!-- Modal histórico de promoções -->
+    <div class="modal-backdrop" id="modal-hist" onclick="fecharHist(event)">
+      <div class="modal">
+        <div class="modal-title" id="modal-hist-title">Histórico de promoções</div>
+        <div id="modal-hist-body"></div>
+        <button class="btn-close-modal" onclick="document.getElementById('modal-hist').classList.remove('open')">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const token = localStorage.getItem('token');
+const role  = localStorage.getItem('role');
+if (!token) location.href = '/';
+
+let todosAg = [], todosAlunos = [], filtroAtual = 'todos';
+const TIPO_LABEL = { adulto:'Adulto', kids1:'Kids 1', kids2:'Kids 2' };
+
+function logout() { localStorage.clear(); location.href = '/'; }
+
+async function api(url, opts={}) {
+  const r = await fetch(url, { ...opts, headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json',...(opts.headers||{})} });
+  if (r.status === 401) { logout(); return null; }
+  return r;
+}
+
+// Converte qualquer formato de data do PostgreSQL em objeto Date
+function toDate(val) {
+  if (!val) return null;
+  const s = String(val).substring(0, 10); // pega apenas YYYY-MM-DD
+  return new Date(s + 'T12:00:00');
+}
+function fmtDate(val) {
+  const d = toDate(val);
+  return d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+}
+function isUpcoming(val) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = toDate(val);
+  return d && d >= today;
+}
+
+function tipoPill(tipo) {
+  if (!tipo) return '';
+  const cls = tipo==='kids1'?'tipo-kids1':tipo==='kids2'?'tipo-kids2':'tipo-adulto';
+  return `<span class="tipo-pill ${cls}">${TIPO_LABEL[tipo]||tipo}</span>`;
+}
+function statusBadge(s) {
+  if (s==='presente') return `<span class="badge badge-presente">✓ Presente</span>`;
+  if (s==='faltou')   return `<span class="badge badge-faltou">✗ Faltou</span>`;
+  return `<span class="badge badge-agendado">📅 Agendado</span>`;
+}
+
+async function init() {
+  document.getElementById('topbar-name').textContent = localStorage.getItem('nome') || '';
+  if (role === 'admin') await loadAdmin();
+  else await loadAluno();
+  document.getElementById('loading').style.display = 'none';
+}
+
+// ── ALUNO ──────────────────────────────────────────────────────────────────────
+async function loadAluno() {
+  const [rMe, rAg] = await Promise.all([api('/api/me'), api('/api/agendamentos')]);
+  const me = await rMe.json();
+  const ags = await rAg.json();
+  document.getElementById('view-aluno').style.display = 'block';
+  document.getElementById('aluno-nome').textContent = me.nome;
+  document.getElementById('aluno-email-txt').textContent = me.email;
+  renderAgAluno(ags.filter(a => isUpcoming(a.data)), 'aluno-proximas', true);
+  renderAgAluno(ags.filter(a => !isUpcoming(a.data)), 'aluno-historico', false);
+}
+
+function renderAgAluno(list, id, upcoming) {
+  const el = document.getElementById(id);
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">${upcoming ? 'Nenhuma aula agendada. <a href="/agendar.html">Agendar agora →</a>' : 'Nenhum histórico ainda.'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(a => {
+    const d = toDate(a.data);
+    const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    return `<div class="ag-card">
+      <div class="ag-card-date">
+        <div class="ag-card-day">${dias[d.getDay()]}</div>
+        <div class="ag-card-num">${String(d.getDate()).padStart(2,'0')}</div>
+        <div class="ag-card-month">${d.toLocaleString('pt-BR',{month:'short'})}</div>
+      </div>
+      <div class="ag-card-info">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          ${tipoPill(a.tipo)}
+          <span style="font-size:13px;font-weight:700;color:#fff">${a.time}h</span>
+          ${statusBadge(a.status)}
+        </div>
+        <div class="ag-card-detail">${a.day}</div>
+      </div>
+      ${upcoming && a.status==='agendado' ? `<button class="btn-del-x" onclick="cancelarAluno(${a.id})" title="Cancelar">×</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function cancelarAluno(id) {
+  if (!confirm('Cancelar este agendamento?')) return;
+  const r = await api(`/api/agendamentos/${id}`, { method:'DELETE' });
+  if (r && r.ok) loadAluno();
+}
+
+// ── ADMIN ──────────────────────────────────────────────────────────────────────
+async function loadAdmin() {
+  const [rAg, rAl] = await Promise.all([api('/api/agendamentos'), api('/api/alunos')]);
+  todosAg = await rAg.json();
+  todosAlunos = await rAl.json();
+  document.getElementById('view-admin').style.display = 'block';
+  renderStatsAulas();
+  renderAulas();
+  renderAlunos(todosAlunos);
+}
+
+function renderStatsAulas() {
+  const hoje = new Date().toISOString().split('T')[0];
+  const total     = todosAg.length;
+  const agendados = todosAg.filter(a => a.status==='agendado').length;
+  const presentes = todosAg.filter(a => a.status==='presente').length;
+  const faltou    = todosAg.filter(a => a.status==='faltou').length;
+  const hojeC     = todosAg.filter(a => String(a.data).substring(0,10) === hoje).length;
+  document.getElementById('stats-aulas').innerHTML = `
+    <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num red">${agendados}</div><div class="stat-label">Agendados</div></div>
+    <div class="stat"><div class="stat-num green">${presentes}</div><div class="stat-label">Presentes</div></div>
+    <div class="stat"><div class="stat-num" style="color:#e06060">${faltou}</div><div class="stat-label">Faltou</div></div>
+    <div class="stat"><div class="stat-num">${hojeC}</div><div class="stat-label">Hoje</div></div>
+  `;
+}
+
+function setFilter(f, btn) {
+  filtroAtual = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAulas();
+}
+
+function renderAulas() {
+  const list = filtroAtual==='todos' ? todosAg : todosAg.filter(a => a.status===filtroAtual);
+  const labels = {todos:'Todos os agendamentos', agendado:'Aulas agendadas', presente:'Alunos presentes', faltou:'Alunos que faltaram'};
+  document.getElementById('aulas-title').textContent = labels[filtroAtual];
+  document.getElementById('aulas-count').textContent = `${list.length} registro(s)`;
+  if (!list.length) { document.getElementById('lista-aulas').innerHTML = '<div class="empty">Nenhum registro.</div>'; return; }
+  const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  document.getElementById('lista-aulas').innerHTML = list.map(a => {
+    const d = toDate(a.data);
+    return `<div class="ag-card">
+      <div class="ag-card-date">
+        <div class="ag-card-day">${dias[d.getDay()]}</div>
+        <div class="ag-card-num">${String(d.getDate()).padStart(2,'0')}</div>
+        <div class="ag-card-month">${d.toLocaleString('pt-BR',{month:'short'})}</div>
+      </div>
+      <div class="ag-card-info">
+        <div class="ag-card-nome">${a.usuario_nome}</div>
+        <div class="ag-card-detail">
+          ${tipoPill(a.tipo)}
+          <span>${a.time}h</span>
+          ${statusBadge(a.status)}
+        </div>
+      </div>
+      <div class="ag-card-actions">
+        <button class="btn-presente${a.status==='presente'?' active':''}" onclick="marcarStatus(${a.id},'presente')">✓ Presente</button>
+        <button class="btn-faltou${a.status==='faltou'?' active':''}" onclick="marcarStatus(${a.id},'faltou')">✗ Faltou</button>
+        <button class="btn-del-x" onclick="deletarAg(${a.id})" title="Remover">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function marcarStatus(id, status) {
+  const r = await api(`/api/agendamentos/${id}/status`, { method:'PATCH', body:JSON.stringify({status}) });
+  if (r && r.ok) {
+    const rAg = await api('/api/agendamentos');
+    if (rAg) todosAg = await rAg.json();
+    // Volta pra "Todos" pra garantir que o card atualizado fica visível
+    filtroAtual = 'todos';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.filter-btn').classList.add('active');
+    renderStatsAulas();
+    renderAulas();
+  }
+}
+
+async function deletarAg(id) {
+  if (!confirm('Remover este agendamento?')) return;
+  const r = await api(`/api/agendamentos/${id}`, { method:'DELETE' });
+  if (r && r.ok) {
+    // Remove localmente sem precisar de refresh
+    todosAg = todosAg.filter(a => Number(a.id) !== Number(id));
+    renderStatsAulas();
+    renderAulas();
+  }
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+// Aulas necessárias por grau em cada faixa
+const BELT_THRESHOLD = {
+  branca:  30,
+  cinza:   30,
+  amarela: 30,
+  laranja: 30,
+  verde:   30,
+  azul:    65,
+  roxa:    75,
+  marrom:  85,
+  preta:   null, // faixa final
+};
+
+// Cores das faixas
+const BELT_STYLE = {
+  branca:  'background:#e8e8e8;color:#222;border-color:#bbb',
+  cinza:   'background:#757575;color:#fff;border-color:#555',
+  amarela: 'background:#F9A825;color:#222;border-color:#F57F17',
+  laranja: 'background:#E64A19;color:#fff;border-color:#BF360C',
+  verde:   'background:#2E7D32;color:#fff;border-color:#1B5E20',
+  azul:    'background:#1565C0;color:#fff;border-color:#0D47A1',
+  roxa:    'background:#6A1B9A;color:#fff;border-color:#4A148C',
+  marrom:  'background:#4E342E;color:#fff;border-color:#3E2723',
+  preta:   'background:#1a1a1a;color:#fff;border-color:#000',
+};
+const BELT_LABEL = {
+  branca:'Branca', cinza:'Cinza', amarela:'Amarela', laranja:'Laranja',
+  verde:'Verde', azul:'Azul', roxa:'Roxa', marrom:'Marrom', preta:'Preta'
+};
+const TODAS_FAIXAS = ['branca','cinza','amarela','laranja','verde','azul','roxa','marrom','preta'];
+
+function faixaBadge(faixa, grau) {
+  const style = BELT_STYLE[faixa] || BELT_STYLE.branca;
+  const dots = Array.from({length:4}, (_,i) =>
+    `<span class="grau-dot${i < grau?' filled':''}"></span>`
+  ).join('');
+  return `<span class="faixa-badge" style="${style}">${BELT_LABEL[faixa]||faixa}<span class="grau-dots">${dots}</span></span>`;
+}
+
+async function recarregarAlunos() {
+  const r = await api('/api/alunos');
+  if (r) { todosAlunos = await r.json(); filtrarAlunos(); }
+}
+
+function filtrarAlunos() {
+  const q = document.getElementById('busca-aluno').value.toLowerCase();
+  renderAlunos(todosAlunos.filter(a => a.nome.toLowerCase().includes(q) || (a.email||'').toLowerCase().includes(q)));
+}
+
+function renderAlunos(lista) {
+  document.getElementById('alunos-title').textContent = `Alunos cadastrados (${lista.length})`;
+  if (!lista.length) { document.getElementById('lista-alunos').innerHTML = '<div class="empty">Nenhum aluno.</div>'; return; }
+
+  document.getElementById('lista-alunos').innerHTML = lista.map(a => {
+    const total     = Number(a.total_aulas) || 0;
+    const grauAu    = Number(a.aulas_grau) || 0;
+    const faixaKey  = a.faixa || 'branca';
+    const threshold = BELT_THRESHOLD[faixaKey];
+    const apto      = threshold !== null && grauAu >= threshold;
+    const pct       = threshold ? Math.min(grauAu / threshold * 100, 100) : 100;
+    const grau     = Number(a.grau) || 0;
+    const faixa    = a.faixa || 'branca';
+
+    const faixaOpts = TODAS_FAIXAS.map(f =>
+      `<option value="${f}"${f===faixa?' selected':''}>${BELT_LABEL[f]}</option>`
+    ).join('');
+    const grauOpts  = [0,1,2,3,4].map(g =>
+      `<option value="${g}"${g===grau?' selected':''}>${g} grau${g===1?'':'s'}</option>`
+    ).join('');
+
+    return `<div class="aluno-card" id="acard-${a.id}">
+      <div class="aluno-card-top">
+        <div class="aluno-info">
+          <div class="aluno-nome">${a.nome}</div>
+          <div class="aluno-email">${a.email}</div>
+          ${a.cel ? `<div class="aluno-cel">${a.cel}</div>` : ''}
+          <div class="aluno-meta">
+            ${faixaBadge(faixa, grau)}
+            <span style="font-size:12px;color:#666">${total} aula${total!==1?'s':''} total</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label${apto?' apto':''}">
+              ${threshold === null
+                ? `<span style="color:#FFD700;font-weight:700">🥋 Faixa Preta</span>`
+                : apto
+                  ? `<span>✓ Apto para promoção</span>`
+                  : `<span>${grauAu}/${threshold} aulas no grau</span>`
+              }
+              ${threshold !== null ? `<span>${grauAu} aulas</span>` : ''}
+            </div>
+            ${threshold !== null ? `
+            <div class="progress-bar">
+              <div class="progress-fill${apto?' apto':''}" style="width:${pct}%"></div>
+            </div>` : ''}
+          </div>
+        </div>
+        <div class="aluno-actions">
+          <button class="btn-editar" onclick="toggleEdit(${a.id})">✎ Faixa</button>
+          <button class="btn-hist" onclick="verHist(${a.id},'${a.nome.replace(/'/g,"\\'")}')">📋 Hist.</button>
+          <button class="btn-del-x" onclick="removerAluno(${a.id},'${a.nome.replace(/'/g,"\\'")}')">×</button>
+        </div>
+      </div>
+
+      <!-- Form edição inline -->
+      <div class="edit-form" id="edit-${a.id}">
+        <div class="edit-row">
+          <select class="edit-select" id="sel-faixa-${a.id}">${faixaOpts}</select>
+          <select class="edit-select" id="sel-grau-${a.id}">${grauOpts}</select>
+          <button class="btn-save" onclick="salvarFaixa(${a.id})">Salvar</button>
+          <button class="btn-cancel-edit" onclick="toggleEdit(${a.id})">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEdit(id) {
+  const el = document.getElementById(`edit-${id}`);
+  el.classList.toggle('open');
+}
+
+async function salvarFaixa(id) {
+  const faixa = document.getElementById(`sel-faixa-${id}`).value;
+  const grau  = Number(document.getElementById(`sel-grau-${id}`).value);
+  const r = await api(`/api/alunos/${id}/faixa`, { method:'PATCH', body:JSON.stringify({faixa, grau}) });
+  if (r && r.ok) {
+    await recarregarAlunos();
+  }
+}
+
+async function verHist(id, nome) {
+  const r = await api(`/api/alunos/${id}/promocoes`);
+  const hist = await r.json();
+  document.getElementById('modal-hist-title').textContent = `Promoções — ${nome}`;
+  document.getElementById('modal-hist-body').innerHTML = hist.length
+    ? hist.map(p => `
+        <div class="hist-item">
+          <div class="hist-date">${fmtDate(p.data)}</div>
+          <div class="hist-info">${faixaBadge(p.faixa, p.grau)}</div>
+        </div>`).join('')
+    : '<div class="empty" style="padding:20px">Nenhuma promoção registrada.</div>';
+  document.getElementById('modal-hist').classList.add('open');
+}
+
+function fecharHist(e) {
+  if (e.target === document.getElementById('modal-hist'))
+    document.getElementById('modal-hist').classList.remove('open');
+}
+
+async function removerAluno(id, nome) {
+  if (!confirm(`Remover "${nome}"?`)) return;
+  const r = await api(`/api/alunos/${id}`, { method:'DELETE' });
+  if (r && r.ok) {
+    todosAlunos = todosAlunos.filter(a => Number(a.id) !== Number(id));
+    filtrarAlunos();
+  }
+}
+
+function exportCSV() {
+  const cols = ['Nome','E-mail','Celular','Faixa','Grau','Total Aulas','Aulas no Grau','Cadastro'];
+  const rows = todosAlunos.map(a => [
+    a.nome, a.email, a.cel||'', BELT_LABEL[a.faixa]||a.faixa, a.grau||0,
+    a.total_aulas||0, a.aulas_grau||0, fmtDate(a.created_at)
+  ]);
+  const csv = [cols,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob); el.download='alunos-alpha.csv'; el.click();
+}
+
+init();
+</script>
+</body>
+</html>

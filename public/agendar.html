@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha Jiu-Jitsu — Agendar Aula</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;min-height:100vh;padding-bottom:40px}
+.topbar{background:#000;padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:54px;border-bottom:1px solid #222}
+.topbar-brand{font-size:18px;font-weight:900;color:#fff;letter-spacing:2px}
+.topbar-sub{font-size:10px;color:#666;letter-spacing:3px;text-transform:uppercase}
+.btn-back{background:none;border:1px solid #333;border-radius:6px;padding:5px 12px;font-size:12px;color:#777;cursor:pointer;text-decoration:none;display:inline-block;transition:all .15s}
+.btn-back:hover{border-color:#fff;color:#fff}
+.content{max-width:660px;margin:0 auto;padding:28px 16px}
+.page-title{font-size:26px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.page-sub{font-size:13px;color:#777;margin-bottom:24px}
+
+/* Legenda */
+.legend{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.dot-adulto{background:#4a4a4a}
+.dot-kids1{background:#E91E8C}
+.dot-kids2{background:#8B2FC9}
+
+/* Tabs de dias */
+.days-scroll{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.days-scroll::-webkit-scrollbar{display:none}
+.day-tab{flex:1;min-width:72px;padding:10px 8px;border:1.5px solid #222;border-radius:10px;cursor:pointer;background:#111;text-align:center;transition:all .15s}
+.day-tab:hover{border-color:#444}
+.day-tab.active{border-color:#C0392B;background:#1a0808}
+.day-tab.past{opacity:.3;cursor:not-allowed;pointer-events:none}
+.day-tab-name{font-size:11px;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:.04em}
+.day-tab.active .day-tab-name{color:#C0392B}
+.day-tab-date{font-size:16px;font-weight:800;color:#fff;margin-top:2px}
+.day-tab-label{font-size:10px;color:#555;margin-top:1px}
+.day-tab.active .day-tab-label{color:#C0392B;opacity:.7}
+
+/* Slots */
+.slots-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:20px;min-height:60px}
+.slot-card{border:1.5px solid #222;border-radius:10px;padding:14px;cursor:pointer;background:#111;transition:all .15s;text-align:center}
+.slot-card:hover{border-color:#444;background:#161616}
+.slot-card.selected{border-color:#C0392B;background:#1a0808;box-shadow:0 0 0 2px rgba(192,57,43,.25)}
+.slot-time{font-size:22px;font-weight:800;color:#fff}
+.slot-tipo{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.tipo-adulto{background:#3a3a3a;color:#ccc}
+.tipo-kids1{background:#E91E8C;color:#fff}
+.tipo-kids2{background:#8B2FC9;color:#fff}
+.no-slots{grid-column:1/-1;text-align:center;padding:30px;color:#444;font-size:13px}
+
+/* Info selecionado */
+.selected-info{background:#C0392B;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none}
+.selected-info.show{display:block}
+.selected-info-text{font-size:14px;font-weight:700;color:#fff}
+
+/* Notificações */
+.notif-card{background:#111;border:1px solid #222;border-radius:12px;padding:18px;margin-bottom:20px}
+.notif-title-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.notif-title{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.08em}
+.notif-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #1a1a1a}
+.notif-row:last-child{border-bottom:none}
+.notif-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.notif-label{font-size:14px;font-weight:600;color:#ddd}
+.notif-sub{font-size:11px;color:#666;margin-top:1px}
+.toggle{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;background:#2e2e2e;border-radius:24px;cursor:pointer;transition:.2s}
+.tslider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+input:checked+.tslider{background:#7B3030}
+input:checked+.tslider:before{transform:translateX(18px)}
+
+.btn{width:100%;padding:14px;background:#fff;color:#000;border:none;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:.1em;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s}
+.btn:hover:not(:disabled){background:#e0e0e0}
+.btn:disabled{opacity:.2;cursor:not-allowed}
+.skip-link{text-align:center;margin-top:14px;font-size:13px}
+.skip-link a{color:#555;text-decoration:none}
+.skip-link a:hover{color:#888}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;font-weight:600;background:#2a0808;color:#ff8080;border:1px solid #4a1515}
+.spinner{width:18px;height:18px;border:2.5px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <div class="topbar-brand">ALPHA</div>
+    <div class="topbar-sub">Escola de Jiu-Jitsu</div>
+  </div>
+  <a class="btn-back" href="/painel.html">← Painel</a>
+</div>
+
+<div class="content">
+  <div class="page-title">Agendar Aula</div>
+  <div class="page-sub">Selecione o dia e horário da semana</div>
+
+  <div class="alert" id="alert-err"></div>
+
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot dot-adulto"></div>Adulto</div>
+    <div class="leg-item"><div class="leg-dot dot-kids1"></div>Kids 1</div>
+    <div class="leg-item"><div class="leg-dot dot-kids2"></div>Kids 2</div>
+  </div>
+
+  <div class="days-scroll" id="days-scroll"></div>
+  <div class="slots-grid" id="slots-grid"></div>
+
+  <div class="selected-info" id="selected-info">
+    <div class="selected-info-text" id="selected-text"></div>
+  </div>
+
+  <div class="notif-card">
+    <div class="notif-title-row">
+      <!-- Sino clean -->
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <div class="notif-title">Lembretes 1h antes do treino</div>
+    </div>
+
+    <div class="notif-row">
+      <!-- Ícone WhatsApp real -->
+      <div class="notif-icon" style="background:#0a1f12">
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="12" fill="#25D366"/>
+          <path d="M12 5.5C8.41 5.5 5.5 8.41 5.5 12c0 1.17.31 2.27.86 3.22L5.5 18.5l3.37-.85A6.46 6.46 0 0 0 12 18.5c3.59 0 6.5-2.91 6.5-6.5S15.59 5.5 12 5.5zm3.21 9.19c-.14.38-.8.73-1.1.76-.3.03-.58.14-1.94-.41-1.64-.66-2.7-2.34-2.78-2.44-.08-.1-.66-.88-.66-1.68 0-.8.41-1.2.56-1.36.14-.16.3-.2.41-.2.1 0 .2 0 .3.01.09 0 .22-.03.34.26.14.3.45 1.11.49 1.19.04.08.07.18.01.29-.05.1-.08.18-.16.27-.08.1-.17.22-.25.3-.08.08-.16.17-.07.33.1.16.43.7.92 1.13.63.56 1.17.74 1.33.82.16.08.26.07.36-.04.09-.1.41-.48.52-.64.1-.16.22-.14.37-.08.15.06.96.45 1.13.53.16.08.27.12.31.19.04.07.04.38-.1.77z" fill="#fff"/>
+        </svg>
+      </div>
+      <div style="flex:1">
+        <div class="notif-label">WhatsApp</div>
+        <div class="notif-sub">Mensagem automática</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="toggle-wa" checked><span class="tslider"></span></label>
+    </div>
+
+    <div class="notif-row">
+      <!-- Envelope clean -->
+      <div class="notif-icon" style="background:#0d1e30">
+        <svg width="20" height="16" viewBox="0 0 24 20" fill="none" stroke="#5b9bd5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="1" width="22" height="18" rx="3"/>
+          <polyline points="1,1 12,11 23,1"/>
+        </svg>
+      </div>
+      <div style="flex:1">
+        <div class="notif-label">E-mail</div>
+        <div class="notif-sub">Enviado automaticamente</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="toggle-email" checked><span class="tslider"></span></label>
+    </div>
+  </div>
+
+  <button class="btn" id="btn-agendar" onclick="agendar()" disabled>Confirmar Agendamento</button>
+  <div class="skip-link"><a href="/painel.html">Fazer isso depois</a></div>
+</div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) location.href = '/';
+
+const SCHEDULE = {
+  Segunda: [ {time:'07:30',tipo:'adulto'}, {time:'16:00',tipo:'adulto'}, {time:'18:15',tipo:'kids1'}, {time:'19:00',tipo:'kids2'}, {time:'19:45',tipo:'adulto'} ],
+  Terça:   [ {time:'18:15',tipo:'kids1'}, {time:'19:00',tipo:'kids2'}, {time:'19:45',tipo:'adulto'} ],
+  Quarta:  [ {time:'07:30',tipo:'adulto'}, {time:'16:00',tipo:'adulto'}, {time:'18:15',tipo:'kids1'}, {time:'19:00',tipo:'kids2'}, {time:'19:45',tipo:'adulto'} ],
+  Quinta:  [ {time:'18:15',tipo:'kids1'}, {time:'19:00',tipo:'kids2'}, {time:'19:45',tipo:'adulto'} ],
+  Sexta:   [ {time:'07:30',tipo:'adulto'}, {time:'19:00',tipo:'adulto'} ],
+  Sábado:  [ {time:'08:00',tipo:'adulto'} ],
+};
+const DAY_NAMES = {0:'Domingo',1:'Segunda',2:'Terça',3:'Quarta',4:'Quinta',5:'Sexta',6:'Sábado'};
+const TIPO_LABEL = { adulto:'Adulto', kids1:'Kids 1', kids2:'Kids 2' };
+
+let activeDateObj = null;
+let selectedSlot  = null;
+
+// Retorna Seg-Sáb da semana atual
+function getCurrentWeekDays() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dow = today.getDay(); // 0=dom
+  // Encontra a segunda-feira desta semana
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+
+  const days = [];
+  for (let i = 0; i < 6; i++) { // Seg(0) a Sáb(5)
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dayName = DAY_NAMES[d.getDay()];
+    if (SCHEDULE[dayName]) days.push({ date: d, dayName });
+  }
+  return days;
+}
+
+function fmtDate(d) { return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }
+function fmtISO(d)  { return d.toISOString().split('T')[0]; }
+
+const weekDays = getCurrentWeekDays();
+const today = new Date(); today.setHours(0,0,0,0);
+
+function isPast(d) { return d < today; }
+
+function renderDays() {
+  document.getElementById('days-scroll').innerHTML = weekDays.map((item, idx) => {
+    const isActive = activeDateObj && fmtISO(item.date) === fmtISO(activeDateObj);
+    const past = isPast(item.date);
+    const label = item.date.getTime() === today.getTime() ? 'Hoje' :
+                  item.date.getTime() === today.getTime()+86400000 ? 'Amanhã' :
+                  ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][item.date.getDay()];
+    return `<div class="day-tab${isActive?' active':''}${past?' past':''}" onclick="selectDay(${idx})">
+      <div class="day-tab-name">${item.dayName.substring(0,3)}</div>
+      <div class="day-tab-date">${fmtDate(item.date)}</div>
+      <div class="day-tab-label">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+function isSlotPast(dateObj, timeStr) {
+  const now = new Date();
+  const [h, m] = timeStr.split(':').map(Number);
+  const slotTime = new Date(dateObj);
+  slotTime.setHours(h, m, 0, 0);
+  return slotTime <= now;
+}
+
+function renderSlots() {
+  if (!activeDateObj) { document.getElementById('slots-grid').innerHTML = ''; return; }
+  const dayName = DAY_NAMES[activeDateObj.getDay()];
+  const slots   = SCHEDULE[dayName] || [];
+  document.getElementById('slots-grid').innerHTML = slots.map(s => {
+    const key    = fmtISO(activeDateObj)+'|'+dayName+'|'+s.time+'|'+s.tipo;
+    const isSel  = selectedSlot && selectedSlot.key === key;
+    const past   = isSlotPast(activeDateObj, s.time);
+    if (past) {
+      return `<div class="slot-card" style="opacity:.3;cursor:not-allowed">
+        <div class="slot-time">${s.time}</div>
+        <span class="slot-tipo tipo-${s.tipo}">${TIPO_LABEL[s.tipo]}</span>
+      </div>`;
+    }
+    return `<div class="slot-card${isSel?' selected':''}" onclick="selectSlot('${key}')">
+      <div class="slot-time">${s.time}</div>
+      <span class="slot-tipo tipo-${s.tipo}">${TIPO_LABEL[s.tipo]}</span>
+    </div>`;
+  }).join('') || '<div class="no-slots">Nenhuma aula disponível</div>';
+}
+
+function selectDay(idx) {
+  if (isPast(weekDays[idx].date)) return; // bloqueia dias passados
+  activeDateObj = weekDays[idx].date;
+  selectedSlot  = null;
+  document.getElementById('selected-info').classList.remove('show');
+  document.getElementById('btn-agendar').disabled = true;
+  renderDays();
+  renderSlots();
+}
+
+function selectSlot(key) {
+  const [data, day, time, tipo] = key.split('|');
+  selectedSlot = { key, data, day, time, tipo };
+  renderSlots();
+  const dataFmt = new Date(data+'T12:00:00').toLocaleDateString('pt-BR');
+  document.getElementById('selected-text').textContent = `✅ ${TIPO_LABEL[tipo]} — ${day} ${dataFmt} às ${time}h`;
+  document.getElementById('selected-info').classList.add('show');
+  document.getElementById('btn-agendar').disabled = false;
+}
+
+async function agendar() {
+  const btn = document.getElementById('btn-agendar');
+  const err = document.getElementById('alert-err');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>Agendando...';
+  try {
+    const r = await fetch('/api/agendar', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({
+        data: selectedSlot.data, day: selectedSlot.day,
+        time: selectedSlot.time, tipo: selectedSlot.tipo,
+        wa:   document.getElementById('toggle-wa').checked,
+        email_notify: document.getElementById('toggle-email').checked
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erro no servidor');
+    location.href = '/painel.html';
+  } catch(e) {
+    err.textContent = e.message; err.style.display = 'block';
+    btn.innerHTML = 'Confirmar Agendamento'; btn.disabled = false;
+  }
+}
+
+// Seleciona hoje ou o primeiro dia disponível
+const todayEntry = weekDays.find(d => fmtISO(d.date) === fmtISO(today));
+activeDateObj = todayEntry ? todayEntry.date : (weekDays[0]?.date || null);
+renderDays();
+renderSlots();
+</script>
+</body>
+</html>
