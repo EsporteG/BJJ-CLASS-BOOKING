@@ -136,38 +136,32 @@ app.post("/api/registrar", async (req, res) => {
   );
   console.log(`📋 Novo aluno: ${nome}`);
 
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  try {
-    await transporter.sendMail({
-      from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: "✅ Confirme seu e-mail — Alpha Jiu-Jitsu",
-      html: `
-        <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
-        <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-          <div style="background:#000;padding:24px;text-align:center">
-            <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
-            <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
-          </div>
-          <div style="padding:28px">
-            <p style="font-size:16px;color:#333">Olá, <strong>${nome}</strong>!</p>
-            <p style="font-size:14px;color:#555;margin-top:8px">Clique no botão abaixo para confirmar seu e-mail e ativar sua conta.</p>
-            <div style="text-align:center;margin:28px 0">
-              <a href="${baseUrl}/api/verificar-email/${tokenVerif}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Confirmar e-mail</a>
-            </div>
-            <p style="font-size:12px;color:#aaa">Se não foi você, ignore este e-mail.</p>
-          </div>
-        </div></body>`
-    });
-    console.log(`📧 E-mail verificação enviado → ${email}`);
-  } catch (err) {
-    console.error("❌ E-mail verificação falhou:", err.message);
-    // Remove o usuário criado para poder tentar de novo
-    await pool.query("DELETE FROM usuarios WHERE id=$1", [id]);
-    return res.status(500).json({ error: "Não foi possível enviar o e-mail de verificação. Verifique se o e-mail está correto e tente novamente." });
-  }
+  // Responde imediatamente — e-mail vai em background
+  res.json({ success: true, message: "Conta criada! Verifique seu e-mail para ativar." });
 
-  return res.json({ success: true, message: "Conta criada! Verifique seu e-mail para ativar." });
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  transporter.sendMail({
+    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "✅ Confirme seu e-mail — Alpha Jiu-Jitsu",
+    html: `
+      <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+        <div style="background:#000;padding:24px;text-align:center">
+          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+          <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+        </div>
+        <div style="padding:28px">
+          <p style="font-size:16px;color:#333">Olá, <strong>${nome}</strong>!</p>
+          <p style="font-size:14px;color:#555;margin-top:8px">Clique no botão abaixo para confirmar seu e-mail e ativar sua conta.</p>
+          <div style="text-align:center;margin:28px 0">
+            <a href="${baseUrl}/api/verificar-email/${tokenVerif}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Confirmar e-mail</a>
+          </div>
+          <p style="font-size:12px;color:#aaa">Se não foi você, ignore este e-mail.</p>
+        </div>
+      </div></body>`
+  }).then(() => console.log(`📧 Verificação enviada → ${email}`))
+    .catch(err => console.error(`❌ E-mail verificação falhou para ${email}:`, err.message));
 });
 
 // GET /api/verificar-email/:token
@@ -196,8 +190,10 @@ app.post("/api/solicitar-recuperacao", recoveryLimiter, async (req, res) => {
     [token, expiry, email]
   );
 
+  res.json({ success: true });
+
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  await transporter.sendMail({
+  transporter.sendMail({
     from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: "🔑 Recuperação de senha — Alpha Jiu-Jitsu",
@@ -217,9 +213,8 @@ app.post("/api/solicitar-recuperacao", recoveryLimiter, async (req, res) => {
           <p style="font-size:12px;color:#aaa">Se não solicitou, ignore este e-mail.</p>
         </div>
       </div></body>`
-  }).catch(err => console.error("❌ E-mail recuperação:", err.message));
-
-  res.json({ success: true });
+  }).then(() => console.log(`📧 Recuperação enviada → ${email}`))
+    .catch(err => console.error(`❌ E-mail recuperação falhou:`, err.message));
 });
 
 // POST /api/redefinir-senha
