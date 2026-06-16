@@ -164,6 +164,44 @@ app.post("/api/registrar", async (req, res) => {
     .catch(err => console.error(`❌ E-mail verificação falhou para ${email}:`, err.message));
 });
 
+// POST /api/reenviar-verificacao
+app.post("/api/reenviar-verificacao", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "E-mail obrigatório." });
+
+  const { rows } = await pool.query(
+    "SELECT id, nome, token_verificacao, email_verificado FROM usuarios WHERE email=$1",
+    [email]
+  );
+  if (!rows.length || rows[0].email_verificado) return res.json({ success: true }); // não revela info
+
+  const token = gerarToken();
+  await pool.query("UPDATE usuarios SET token_verificacao=$1 WHERE id=$2", [token, rows[0].id]);
+
+  res.json({ success: true });
+
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  transporter.sendMail({
+    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "✅ Confirme seu e-mail — Alpha Jiu-Jitsu",
+    html: `<body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+        <div style="background:#000;padding:24px;text-align:center">
+          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+        </div>
+        <div style="padding:28px">
+          <p style="font-size:15px;color:#333">Olá, <strong>${rows[0].nome}</strong>!</p>
+          <p style="font-size:14px;color:#555;margin-top:8px">Clique abaixo para confirmar seu e-mail.</p>
+          <div style="text-align:center;margin:24px 0">
+            <a href="${baseUrl}/api/verificar-email/${token}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700">Confirmar e-mail</a>
+          </div>
+        </div>
+      </div></body>`
+  }).then(() => console.log(`📧 Reenvio verificação → ${email}`))
+    .catch(err => console.error(`❌ Reenvio falhou:`, err.message));
+});
+
 // GET /api/verificar-email/:token
 app.get("/api/verificar-email/:token", async (req, res) => {
   const { rows } = await pool.query(
