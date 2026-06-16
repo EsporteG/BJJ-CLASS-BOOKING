@@ -240,8 +240,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 const token = localStorage.getItem('token');
-const role  = localStorage.getItem('role');
 if (!token) location.href = '/';
+let serverRole = null; // role verificado pelo servidor, nunca pelo localStorage
 
 let todosAg = [], todosAlunos = [], filtroAtual = 'todos';
 const TIPO_LABEL = { adulto:'Adulto', kids1:'Kids 1', kids2:'Kids 2' };
@@ -283,7 +283,14 @@ function statusBadge(s) {
 
 async function init() {
   document.getElementById('topbar-name').textContent = localStorage.getItem('nome') || '';
-  if (role === 'admin') await loadAdmin();
+
+  // Verifica role no SERVIDOR — localStorage não é confiável
+  const rMe = await api('/api/me');
+  if (!rMe) return; // token inválido → logout já foi chamado
+  const me = await rMe.json();
+  serverRole = me.role;
+
+  if (serverRole === 'admin') await loadAdmin();
   else await loadAluno();
   document.getElementById('loading').style.display = 'none';
 }
