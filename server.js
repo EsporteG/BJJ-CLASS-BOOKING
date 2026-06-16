@@ -20,10 +20,13 @@ app.use(express.static(path.join(__dirname, "public")));
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM;
 
-// ─── Gmail ────────────────────────────────────────────────────────────────────
+// ─── Gmail (SMTP explícito) ───────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+  tls: { rejectUnauthorized: false },
 });
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
