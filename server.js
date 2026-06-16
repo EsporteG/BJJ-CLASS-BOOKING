@@ -341,11 +341,12 @@ app.post("/api/agendar", auth, async (req, res) => {
   const dataFmt = new Date(data + "T12:00:00").toLocaleDateString("pt-BR");
   console.log(`📅 Agendado: ${user[0].nome} — ${tipoLabel} ${day} ${dataFmt} ${time}h`);
 
-  const confirmMsg = `OSS, ${user[0].nome}! ✅ Aula agendada: *${tipoLabel} — ${day} ${dataFmt} às ${time}h*. 🤜🤛`;
-  if (wa) await sendWhatsApp(user[0].cel, confirmMsg);
-  if (email_notify) await sendEmail(user[0].email, user[0].nome, `${day} ${dataFmt}`, time, tipo);
-
+  // Responde imediatamente — notificações vão em background
   res.json({ success: true, id: ag[0].id });
+
+  const confirmMsg = `OSS, ${user[0].nome}! ✅ Aula agendada: *${tipoLabel} — ${day} ${dataFmt} às ${time}h*. 🤜🤛`;
+  if (wa) sendWhatsApp(user[0].cel, confirmMsg).catch(e => console.error("❌ WA agendar:", e.message));
+  if (email_notify) sendEmail(user[0].email, user[0].nome, `${day} ${dataFmt}`, time, tipo).catch(e => console.error("❌ Email agendar:", e.message));
 });
 
 // GET /api/agendamentos — admin vê todos; aluno vê os seus
