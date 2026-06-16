@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const twilio = require("twilio");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -20,7 +21,10 @@ app.use(express.static(path.join(__dirname, "public")));
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM;
 
-// ─── Gmail (SMTP explícito) ───────────────────────────────────────────────────
+// ─── Resend (e-mails transacionais) ──────────────────────────────────────────
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ─── Nodemailer (lembretes WhatsApp fallback) ─────────────────────────────────
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
@@ -28,6 +32,16 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
   tls: { rejectUnauthorized: false },
 });
+
+async function sendResend(to, subject, html) {
+  const { error } = await resend.emails.send({
+    from: "Alpha Jiu-Jitsu <onboarding@resend.dev>",
+    to,
+    subject,
+    html,
+  });
+  if (error) throw new Error(error.message);
+}
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
@@ -140,28 +154,24 @@ app.post("/api/registrar", async (req, res) => {
   res.json({ success: true, message: "Conta criada! Verifique seu e-mail para ativar." });
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  transporter.sendMail({
-    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: "✅ Confirme seu e-mail — Alpha Jiu-Jitsu",
-    html: `
-      <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
-      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-        <div style="background:#000;padding:24px;text-align:center">
-          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
-          <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+  sendResend(email, "✅ Confirme seu e-mail — Alpha Jiu-Jitsu", `
+    <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+      <div style="background:#000;padding:24px;text-align:center">
+        <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+        <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+      </div>
+      <div style="padding:28px">
+        <p style="font-size:16px;color:#333">Olá, <strong>${nome}</strong>!</p>
+        <p style="font-size:14px;color:#555;margin-top:8px">Clique no botão abaixo para confirmar seu e-mail e ativar sua conta.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${baseUrl}/api/verificar-email/${tokenVerif}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Confirmar e-mail</a>
         </div>
-        <div style="padding:28px">
-          <p style="font-size:16px;color:#333">Olá, <strong>${nome}</strong>!</p>
-          <p style="font-size:14px;color:#555;margin-top:8px">Clique no botão abaixo para confirmar seu e-mail e ativar sua conta.</p>
-          <div style="text-align:center;margin:28px 0">
-            <a href="${baseUrl}/api/verificar-email/${tokenVerif}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Confirmar e-mail</a>
-          </div>
-          <p style="font-size:12px;color:#aaa">Se não foi você, ignore este e-mail.</p>
-        </div>
-      </div></body>`
-  }).then(() => console.log(`📧 Verificação enviada → ${email}`))
-    .catch(err => console.error(`❌ E-mail verificação falhou para ${email}:`, err.message));
+        <p style="font-size:12px;color:#aaa">Se não foi você, ignore este e-mail.</p>
+      </div>
+    </div></body>`)
+    .then(() => console.log(`📧 Verificação enviada → ${email}`))
+    .catch(err => console.error(`❌ E-mail verificação falhou:`, err.message));
 });
 
 // POST /api/reenviar-verificacao
@@ -181,24 +191,21 @@ app.post("/api/reenviar-verificacao", async (req, res) => {
   res.json({ success: true });
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  transporter.sendMail({
-    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: "✅ Confirme seu e-mail — Alpha Jiu-Jitsu",
-    html: `<body style="font-family:Arial,sans-serif;background:#111;padding:20px">
-      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-        <div style="background:#000;padding:24px;text-align:center">
-          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+  sendResend(email, "✅ Confirme seu e-mail — Alpha Jiu-Jitsu", `
+    <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+      <div style="background:#000;padding:24px;text-align:center">
+        <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+      </div>
+      <div style="padding:28px">
+        <p style="font-size:15px;color:#333">Olá, <strong>${rows[0].nome}</strong>!</p>
+        <p style="font-size:14px;color:#555;margin-top:8px">Clique abaixo para confirmar seu e-mail.</p>
+        <div style="text-align:center;margin:24px 0">
+          <a href="${baseUrl}/api/verificar-email/${token}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700">Confirmar e-mail</a>
         </div>
-        <div style="padding:28px">
-          <p style="font-size:15px;color:#333">Olá, <strong>${rows[0].nome}</strong>!</p>
-          <p style="font-size:14px;color:#555;margin-top:8px">Clique abaixo para confirmar seu e-mail.</p>
-          <div style="text-align:center;margin:24px 0">
-            <a href="${baseUrl}/api/verificar-email/${token}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700">Confirmar e-mail</a>
-          </div>
-        </div>
-      </div></body>`
-  }).then(() => console.log(`📧 Reenvio verificação → ${email}`))
+      </div>
+    </div></body>`)
+    .then(() => console.log(`📧 Reenvio verificação → ${email}`))
     .catch(err => console.error(`❌ Reenvio falhou:`, err.message));
 });
 
@@ -231,27 +238,23 @@ app.post("/api/solicitar-recuperacao", recoveryLimiter, async (req, res) => {
   res.json({ success: true });
 
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  transporter.sendMail({
-    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: "🔑 Recuperação de senha — Alpha Jiu-Jitsu",
-    html: `
-      <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
-      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-        <div style="background:#000;padding:24px;text-align:center">
-          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
-          <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+  sendResend(email, "🔑 Recuperação de senha — Alpha Jiu-Jitsu", `
+    <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+      <div style="background:#000;padding:24px;text-align:center">
+        <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+        <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+      </div>
+      <div style="padding:28px">
+        <p style="font-size:16px;color:#333">Olá, <strong>${rows[0].nome}</strong>!</p>
+        <p style="font-size:14px;color:#555;margin-top:8px">Recebemos uma solicitação para redefinir sua senha. O link expira em <strong>1 hora</strong>.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${baseUrl}/redefinir-senha.html?token=${token}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Redefinir senha</a>
         </div>
-        <div style="padding:28px">
-          <p style="font-size:16px;color:#333">Olá, <strong>${rows[0].nome}</strong>!</p>
-          <p style="font-size:14px;color:#555;margin-top:8px">Recebemos uma solicitação para redefinir sua senha. O link expira em <strong>1 hora</strong>.</p>
-          <div style="text-align:center;margin:28px 0">
-            <a href="${baseUrl}/redefinir-senha.html?token=${token}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Redefinir senha</a>
-          </div>
-          <p style="font-size:12px;color:#aaa">Se não solicitou, ignore este e-mail.</p>
-        </div>
-      </div></body>`
-  }).then(() => console.log(`📧 Recuperação enviada → ${email}`))
+        <p style="font-size:12px;color:#aaa">Se não solicitou, ignore este e-mail.</p>
+      </div>
+    </div></body>`)
+    .then(() => console.log(`📧 Recuperação enviada → ${email}`))
     .catch(err => console.error(`❌ E-mail recuperação falhou:`, err.message));
 });
 
