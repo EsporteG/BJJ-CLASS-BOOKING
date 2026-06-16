@@ -7,6 +7,8 @@ const twilio = require("twilio");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const crypto = require("crypto");
+const rateLimit = require("express-rate-limit");
 const { pool, initDB } = require("./db");
 
 const app = express();
@@ -23,6 +25,25 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
 });
+
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: "Muitas tentativas. Tente novamente em 15 minutos." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const recoveryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: "Muitas solicitações. Tente novamente em 1 hora." },
+});
+
+function gerarToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET || "academia-secret-2024";
@@ -104,18 +125,114 @@ app.post("/api/registrar", async (req, res) => {
 
   const hash = await bcrypt.hash(senha, 10);
   const id = Date.now();
+  const tokenVerif = gerarToken();
+
   await pool.query(
-    "INSERT INTO usuarios (id,nome,email,senha,cel,role,created_at) VALUES ($1,$2,$3,$4,$5,'aluno',NOW())",
-    [id, nome, email, hash, cel]
+    "INSERT INTO usuarios (id,nome,email,senha,cel,role,email_verificado,token_verificacao,created_at) VALUES ($1,$2,$3,$4,$5,'aluno',false,$6,NOW())",
+    [id, nome, email, hash, cel, tokenVerif]
   );
   console.log(`📋 Novo aluno: ${nome}`);
 
-  const token = jwt.sign({ id, nome, role: "aluno" }, JWT_SECRET, { expiresIn: "7d" });
-  return res.json({ success: true, token, role: "aluno", nome });
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  await transporter.sendMail({
+    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "✅ Confirme seu e-mail — Alpha Jiu-Jitsu",
+    html: `
+      <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+        <div style="background:#000;padding:24px;text-align:center">
+          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+          <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+        </div>
+        <div style="padding:28px">
+          <p style="font-size:16px;color:#333">Olá, <strong>${nome}</strong>!</p>
+          <p style="font-size:14px;color:#555;margin-top:8px">Clique no botão abaixo para confirmar seu e-mail e ativar sua conta.</p>
+          <div style="text-align:center;margin:28px 0">
+            <a href="${baseUrl}/api/verificar-email/${tokenVerif}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Confirmar e-mail</a>
+          </div>
+          <p style="font-size:12px;color:#aaa">Se não foi você, ignore este e-mail.</p>
+        </div>
+      </div></body>`
+  }).catch(err => console.error("❌ E-mail verificação:", err.message));
+
+  return res.json({ success: true, message: "Conta criada! Verifique seu e-mail para ativar." });
 });
 
-// POST /api/login
-app.post("/api/login", async (req, res) => {
+// GET /api/verificar-email/:token
+app.get("/api/verificar-email/:token", async (req, res) => {
+  const { rows } = await pool.query(
+    "UPDATE usuarios SET email_verificado=true, token_verificacao=NULL WHERE token_verificacao=$1 RETURNING id",
+    [req.params.token]
+  );
+  if (!rows.length) return res.redirect("/verificar-email.html?status=invalido");
+  res.redirect("/verificar-email.html?status=ok");
+});
+
+// POST /api/solicitar-recuperacao
+app.post("/api/solicitar-recuperacao", recoveryLimiter, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "E-mail obrigatório." });
+
+  const { rows } = await pool.query("SELECT id, nome FROM usuarios WHERE email=$1", [email]);
+  // Sempre retorna sucesso para não revelar se e-mail existe
+  if (!rows.length) return res.json({ success: true });
+
+  const token = gerarToken();
+  const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+  await pool.query(
+    "UPDATE usuarios SET token_recuperacao=$1, token_expiry=$2 WHERE email=$3",
+    [token, expiry, email]
+  );
+
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  await transporter.sendMail({
+    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "🔑 Recuperação de senha — Alpha Jiu-Jitsu",
+    html: `
+      <body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+        <div style="background:#000;padding:24px;text-align:center">
+          <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+          <div style="color:#aaa;font-size:11px;letter-spacing:3px">ESCOLA DE JIU-JITSU</div>
+        </div>
+        <div style="padding:28px">
+          <p style="font-size:16px;color:#333">Olá, <strong>${rows[0].nome}</strong>!</p>
+          <p style="font-size:14px;color:#555;margin-top:8px">Recebemos uma solicitação para redefinir sua senha. O link expira em <strong>1 hora</strong>.</p>
+          <div style="text-align:center;margin:28px 0">
+            <a href="${baseUrl}/redefinir-senha.html?token=${token}" style="background:#C0392B;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px">Redefinir senha</a>
+          </div>
+          <p style="font-size:12px;color:#aaa">Se não solicitou, ignore este e-mail.</p>
+        </div>
+      </div></body>`
+  }).catch(err => console.error("❌ E-mail recuperação:", err.message));
+
+  res.json({ success: true });
+});
+
+// POST /api/redefinir-senha
+app.post("/api/redefinir-senha", async (req, res) => {
+  const { token, senha } = req.body;
+  if (!token || !senha) return res.status(400).json({ error: "Dados inválidos." });
+  if (senha.length < 6) return res.status(400).json({ error: "Senha deve ter no mínimo 6 caracteres." });
+
+  const { rows } = await pool.query(
+    "SELECT id FROM usuarios WHERE token_recuperacao=$1 AND token_expiry > NOW()",
+    [token]
+  );
+  if (!rows.length) return res.status(400).json({ error: "Link inválido ou expirado." });
+
+  const hash = await bcrypt.hash(senha, 10);
+  await pool.query(
+    "UPDATE usuarios SET senha=$1, token_recuperacao=NULL, token_expiry=NULL WHERE id=$2",
+    [hash, rows[0].id]
+  );
+  res.json({ success: true });
+});
+
+// POST /api/login — com rate limiting
+app.post("/api/login", loginLimiter, async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha) return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
 
@@ -131,6 +248,10 @@ app.post("/api/login", async (req, res) => {
 
   const ok = await bcrypt.compare(senha, user.senha);
   if (!ok) return res.status(401).json({ error: "Senha incorreta." });
+
+  if (!user.email_verificado) {
+    return res.status(403).json({ error: "E-mail não verificado. Verifique sua caixa de entrada." });
+  }
 
   const token = jwt.sign({ id: user.id, nome: user.nome, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
   return res.json({ success: true, token, role: user.role, nome: user.nome });

@@ -22,6 +22,11 @@ async function initDB() {
   // Adiciona colunas caso a tabela já existia sem elas
   await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS faixa VARCHAR(20) DEFAULT 'branca'`);
   await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS grau INTEGER DEFAULT 0`);
+  // DEFAULT true para não bloquear usuários existentes
+  await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_verificado BOOLEAN DEFAULT true`);
+  await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_verificacao VARCHAR(64)`);
+  await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_recuperacao VARCHAR(64)`);
+  await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_expiry TIMESTAMPTZ`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS agendamentos (

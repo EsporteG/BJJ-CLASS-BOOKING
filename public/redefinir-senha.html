@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alpha Jiu-Jitsu — Redefinir Senha</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.card{background:#fff;border-radius:16px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.card-header{background:#000;padding:28px 32px 20px;text-align:center}
+.logo-img{width:120px;height:120px;object-fit:contain}
+.logo-fallback{font-size:26px;font-weight:900;color:#fff;letter-spacing:3px}
+.logo-sub{font-size:10px;color:#666;letter-spacing:4px;text-transform:uppercase;margin-top:3px}
+.header-title{color:#fff;font-size:13px;margin-top:10px;opacity:.7}
+.card-body{padding:28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.field input{width:100%;padding:11px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-size:15px;outline:none;transition:border .15s;background:#fafafa}
+.field input:focus{border-color:#000;background:#fff}
+.hint{font-size:11px;color:#bbb;margin-top:4px}
+.btn{width:100%;padding:13px;background:#C0392B;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover:not(:disabled){background:#a93226}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;font-weight:500}
+.alert-err{background:#fff0f0;color:#c0392b;border:1px solid #f5c6c6}
+.alert-ok{background:#f0fff4;color:#27ae60;border:1px solid #b2dfdb}
+.spinner{width:17px;height:17px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <img class="logo-img" src="/logo.jpeg" alt="Alpha" onerror="this.style.display='none';document.getElementById('lft').style.display='block'">
+    <div id="lft" style="display:none"><div class="logo-fallback">ALPHA</div><div class="logo-sub">Escola de Jiu-Jitsu</div></div>
+    <div class="header-title">Redefinir senha</div>
+  </div>
+  <div class="card-body" id="card-body">
+    <div class="alert alert-err" id="alert-err"></div>
+    <div class="field">
+      <label>Nova senha</label>
+      <input type="password" id="senha" placeholder="mínimo 6 caracteres">
+      <div class="hint">Mínimo 6 caracteres</div>
+    </div>
+    <div class="field">
+      <label>Confirmar senha</label>
+      <input type="password" id="confirmar" placeholder="repita a senha" onkeydown="if(event.key==='Enter')redefinir()">
+    </div>
+    <button class="btn" id="btn" onclick="redefinir()">Salvar nova senha</button>
+  </div>
+</div>
+<script>
+const token = new URLSearchParams(location.search).get('token');
+if (!token) {
+  document.getElementById('card-body').innerHTML = '<div class="alert alert-err" style="display:block">Link inválido. <a href="/recuperar-senha.html">Solicite um novo.</a></div>';
+}
+
+async function redefinir() {
+  const btn = document.getElementById('btn');
+  const err = document.getElementById('alert-err');
+  const senha = document.getElementById('senha').value;
+  const confirmar = document.getElementById('confirmar').value;
+  err.style.display = 'none';
+  if (senha.length < 6) { err.textContent = 'Senha deve ter no mínimo 6 caracteres.'; err.style.display = 'block'; return; }
+  if (senha !== confirmar) { err.textContent = 'As senhas não coincidem.'; err.style.display = 'block'; return; }
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>Salvando...';
+  try {
+    const r = await fetch('/api/redefinir-senha', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token, senha})
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    document.getElementById('card-body').innerHTML = `
+      <div class="alert alert-ok" style="display:block;margin-bottom:16px">Senha alterada com sucesso!</div>
+      <a class="btn" href="/" style="text-decoration:none;justify-content:center">Fazer login</a>`;
+  } catch(e) {
+    err.textContent = e.message; err.style.display = 'block';
+    btn.disabled = false; btn.innerHTML = 'Salvar nova senha';
+  }
+}
+</script>
+</body>
+</html>
