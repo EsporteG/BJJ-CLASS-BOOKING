@@ -3,8 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
-const { Resend } = require("resend");
-const twilio = require("twilio");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
@@ -17,14 +15,7 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── Twilio ───────────────────────────────────────────────────────────────────
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-const TWILIO_FROM = process.env.TWILIO_WHATSAPP_FROM;
-
-// ─── Resend (e-mails transacionais) ──────────────────────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// ─── Nodemailer (lembretes WhatsApp fallback) ─────────────────────────────────
+// ─── Nodemailer (Gmail) ───────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
@@ -34,13 +25,12 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendResend(to, subject, html) {
-  const { error } = await resend.emails.send({
-    from: "Alpha Jiu-Jitsu <onboarding@resend.dev>",
+  await transporter.sendMail({
+    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
     to,
     subject,
     html,
   });
-  if (error) throw new Error(error.message);
 }
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
@@ -82,17 +72,6 @@ function adminOnly(req, res, next) {
 }
 
 // ─── Notificações ─────────────────────────────────────────────────────────────
-async function sendWhatsApp(to, message) {
-  const phone = to.replace(/\D/g, "");
-  const full = phone.startsWith("55") ? phone : "55" + phone;
-  try {
-    await twilioClient.messages.create({ from: TWILIO_FROM, to: `whatsapp:+${full}`, body: message });
-    console.log(`✅ WhatsApp → +${full}`);
-  } catch (err) {
-    console.error(`❌ WhatsApp → +${full}:`, err.message);
-  }
-}
-
 async function sendEmail(to, nome, day, time, tipo) {
   const tipoLabel = tipo === "kids1" ? "Kids 1" : tipo === "kids2" ? "Kids 2" : "Adulto";
   const html = `
@@ -344,8 +323,6 @@ app.post("/api/agendar", auth, async (req, res) => {
   // Responde imediatamente — notificações vão em background
   res.json({ success: true, id: ag[0].id });
 
-  const confirmMsg = `OSS, ${user[0].nome}! ✅ Aula agendada: *${tipoLabel} — ${day} ${dataFmt} às ${time}h*. 🤜🤛`;
-  if (wa) sendWhatsApp(user[0].cel, confirmMsg).catch(e => console.error("❌ WA agendar:", e.message));
   if (email_notify) sendEmail(user[0].email, user[0].nome, `${day} ${dataFmt}`, time, tipo).catch(e => console.error("❌ Email agendar:", e.message));
 });
 
@@ -472,8 +449,6 @@ cron.schedule("* * * * *", async () => {
     const reminderH = th - 1;
     if (reminderH < 0 || h !== reminderH || m !== (tm || 0)) continue;
     console.log(`⏰ Lembrete → ${ag.usuario_nome} (${ag.day} ${ag.time}h)`);
-    const msg = `⏰ OSS ${ag.usuario_nome}! Sua aula começa em *1 hora* (${ag.time}h). Bora! 🤜🤛`;
-    if (ag.wa) await sendWhatsApp(ag.cel, msg);
     if (ag.email_notify) await sendEmail(ag.email, ag.usuario_nome, ag.day, ag.time, ag.tipo);
   }
 });
