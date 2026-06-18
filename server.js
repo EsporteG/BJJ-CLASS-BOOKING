@@ -2,7 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cron = require("node-cron");
-const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
@@ -11,26 +10,35 @@ const rateLimit = require("express-rate-limit");
 const { pool, initDB } = require("./db");
 
 const app = express();
+app.set("trust proxy", 1); // Railway runs behind a proxy
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── Nodemailer (Gmail) ───────────────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-  tls: { rejectUnauthorized: false },
-});
+// ─── Brevo (HTTP API — funciona no Railway, não usa SMTP) ────────────────────
+async function sendEmail(to, subject, html) {
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "api-key": process.env.BREVO_API_KEY,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: "Alpha Jiu-Jitsu", email: process.env.GMAIL_USER },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Brevo HTTP ${res.status}`);
+  }
+}
 
 async function sendResend(to, subject, html) {
-  await transporter.sendMail({
-    from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
-    to,
-    subject,
-    html,
-  });
+  await sendEmail(to, subject, html);
 }
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
@@ -72,7 +80,7 @@ function adminOnly(req, res, next) {
 }
 
 // ─── Notificações ─────────────────────────────────────────────────────────────
-async function sendEmail(to, nome, day, time, tipo) {
+async function sendLembrete(to, nome, day, time, tipo) {
   const tipoLabel = tipo === "kids1" ? "Kids 1" : tipo === "kids2" ? "Kids 2" : "Adulto";
   const html = `
     <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#111;padding:20px">
@@ -94,12 +102,7 @@ async function sendEmail(to, nome, day, time, tipo) {
       </div>
     </div></body></html>`;
   try {
-    await transporter.sendMail({
-      from: `"Alpha Jiu-Jitsu" <${process.env.GMAIL_USER}>`,
-      to,
-      subject: `⏰ Lembrete: treino de ${tipoLabel} em 1 hora — ${time}h`,
-      html,
-    });
+    await sendEmail(to, `⏰ Lembrete: treino de ${tipoLabel} em 1 hora — ${time}h`, html);
     console.log(`✅ E-mail → ${to}`);
   } catch (err) {
     console.error(`❌ E-mail → ${to}:`, err.message);
@@ -323,7 +326,7 @@ app.post("/api/agendar", auth, async (req, res) => {
   // Responde imediatamente — notificações vão em background
   res.json({ success: true, id: ag[0].id });
 
-  if (email_notify) sendEmail(user[0].email, user[0].nome, `${day} ${dataFmt}`, time, tipo).catch(e => console.error("❌ Email agendar:", e.message));
+  if (email_notify) sendLembrete(user[0].email, user[0].nome, `${day} ${dataFmt}`, time, tipo).catch(e => console.error("❌ Email agendar:", e.message));
 });
 
 // GET /api/agendamentos — admin vê todos; aluno vê os seus
@@ -449,7 +452,7 @@ cron.schedule("* * * * *", async () => {
     const reminderH = th - 1;
     if (reminderH < 0 || h !== reminderH || m !== (tm || 0)) continue;
     console.log(`⏰ Lembrete → ${ag.usuario_nome} (${ag.day} ${ag.time}h)`);
-    if (ag.email_notify) await sendEmail(ag.email, ag.usuario_nome, ag.day, ag.time, ag.tipo);
+    if (ag.email_notify) await sendLembrete(ag.email, ag.usuario_nome, ag.day, ag.time, ag.tipo);
   }
 });
 
