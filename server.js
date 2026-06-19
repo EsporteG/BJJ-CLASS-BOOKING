@@ -109,6 +109,30 @@ async function sendLembrete(to, nome, day, time, tipo) {
   }
 }
 
+async function sendConfirmacao(to, nome, tipoLabel, day, dataFmt, time) {
+  const html = `
+    <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#111;padding:20px">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+      <div style="background:#000;padding:24px;text-align:center">
+        <div style="color:#fff;font-size:26px;font-weight:900;letter-spacing:2px">ALPHA</div>
+        <div style="color:#aaa;font-size:11px;letter-spacing:3px;margin-top:2px">ESCOLA DE JIU-JITSU</div>
+      </div>
+      <div style="padding:28px">
+        <p style="font-size:16px;color:#333">Olá, <strong>${nome}</strong>!</p>
+        <p style="font-size:15px;color:#555">Sua aula de <strong>${tipoLabel}</strong> foi agendada com sucesso.</p>
+        <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:20px 0;text-align:center">
+          <p style="margin:0;font-size:18px;font-weight:bold;color:#000">📅 ${day} ${dataFmt} · ⏰ ${time}h · ${tipoLabel}</p>
+        </div>
+        <p style="font-size:13px;color:#888">Você receberá um lembrete 1 hora antes. OSS! 🤜🤛</p>
+      </div>
+      <div style="background:#000;padding:12px;text-align:center">
+        <p style="margin:0;font-size:11px;color:#666">Alpha Escola de Jiu-Jitsu · (12) 98286-0002</p>
+      </div>
+    </div></body></html>`;
+  await sendEmail(to, `✅ Aula agendada: ${tipoLabel} — ${day} ${dataFmt} às ${time}h`, html);
+  console.log(`✅ Confirmação → ${to}`);
+}
+
 // ─── Rotas ────────────────────────────────────────────────────────────────────
 
 // POST /api/registrar
@@ -326,7 +350,7 @@ app.post("/api/agendar", auth, async (req, res) => {
   // Responde imediatamente — notificações vão em background
   res.json({ success: true, id: ag[0].id });
 
-  if (email_notify) sendLembrete(user[0].email, user[0].nome, `${day} ${dataFmt}`, time, tipo).catch(e => console.error("❌ Email agendar:", e.message));
+  if (email_notify) sendConfirmacao(user[0].email, user[0].nome, tipoLabel, day, dataFmt, time).catch(e => console.error("❌ Email confirmação:", e.message));
 });
 
 // GET /api/agendamentos — admin vê todos; aluno vê os seus
